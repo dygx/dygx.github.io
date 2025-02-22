@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4CAF50">
     <title>NFC Tracker</title>
     <style>
         body {
@@ -111,6 +112,102 @@
             z-index: 1000;
             display: none;
         }
+        .tab-container {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #f1f1f1;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        .tab:hover {
+            background-color: #ddd;
+        }
+        .tab.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-top: none;
+            animation: fadeEffect 1s;
+        }
+        @keyframes fadeEffect {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+        .visualization {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .data-chart {
+            width: 100%;
+            margin-top: 20px;
+        }
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-bottom: 20px;
+        }
+        .bar {
+            position: absolute;
+            bottom: 0;
+            width: 30px;
+            background-color: #4CAF50;
+            transition: height 0.5s ease;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+        .bar-label {
+            text-align: center;
+            font-size: 10px;
+            position: absolute;
+            width: 30px;
+            bottom: -20px;
+        }
+        .bar-value {
+            position: absolute;
+            width: 30px;
+            text-align: center;
+            font-size: 12px;
+            top: -20px;
+        }
+        .notes-container {
+            margin-top: 20px;
+        }
+        .note {
+            background-color: #ffffd0;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #ffd700;
+        }
+        .note-metadata {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .json-view {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
@@ -121,7 +218,7 @@
         <div class="card">
             <div class="tag-status">
                 <div id="statusIndicator" class="status-indicator disconnected"></div>
-                <div id="statusText">Waiting for NFC tag...</div>
+                <div id="statusText">Checking NFC availability...</div>
             </div>
             
             <div class="action-buttons">
@@ -130,30 +227,79 @@
             </div>
             
             <div id="tagContent" style="display: none;">
-                <h2>Tag Information</h2>
-                <div>
-                    <label for="itemName">Item Name:</label>
-                    <input type="text" id="itemName" placeholder="Enter item name">
-                </div>
-                
-                <div>
-                    <label for="description">Description:</label>
-                    <textarea id="description" rows="4" placeholder="Enter description"></textarea>
-                </div>
-                
-                <div>
-                    <label for="changes">What changed:</label>
-                    <input type="text" id="changes" placeholder="Describe your changes">
-                </div>
-                
-                <div>
-                    <label for="user">Your name:</label>
-                    <input type="text" id="user" placeholder="Enter your name">
-                </div>
-                
-                <div id="history">
-                    <h3>History</h3>
-                    <div id="historyEntries"></div>
+                <div class="tab-container">
+                    <div class="tabs">
+                        <button class="tab active" onclick="openTab(event, 'infoTab')">Basic Info</button>
+                        <button class="tab" onclick="openTab(event, 'notesTab')">Notes</button>
+                        <button class="tab" onclick="openTab(event, 'visualizeTab')">Visualize</button>
+                        <button class="tab" onclick="openTab(event, 'historyTab')">History</button>
+                        <button class="tab" onclick="openTab(event, 'rawDataTab')">Raw Data</button>
+                    </div>
+                    
+                    <div id="infoTab" class="tab-content" style="display: block;">
+                        <h2>Tag Information</h2>
+                        <div>
+                            <label for="itemName">Item Name:</label>
+                            <input type="text" id="itemName" placeholder="Enter item name">
+                        </div>
+                        
+                        <div>
+                            <label for="description">Description:</label>
+                            <textarea id="description" rows="4" placeholder="Enter description"></textarea>
+                        </div>
+                        
+                        <div>
+                            <label for="changes">What changed:</label>
+                            <input type="text" id="changes" placeholder="Describe your changes">
+                        </div>
+                        
+                        <div>
+                            <label for="user">Your name:</label>
+                            <input type="text" id="user" placeholder="Enter your name">
+                        </div>
+                    </div>
+                    
+                    <div id="notesTab" class="tab-content">
+                        <h2>Add Note</h2>
+                        <div>
+                            <label for="noteText">Note:</label>
+                            <textarea id="noteText" rows="4" placeholder="Enter your note here"></textarea>
+                        </div>
+                        <button id="addNoteButton">Add Note</button>
+                        
+                        <h3>Saved Notes</h3>
+                        <div id="notesContainer" class="notes-container">
+                            <p>No notes found</p>
+                        </div>
+                    </div>
+                    
+                    <div id="visualizeTab" class="tab-content">
+                        <h2>Data Visualization</h2>
+                        <div class="visualization">
+                            <h3>History Timeline</h3>
+                            <p>Updates over time</p>
+                            <div id="historyChart" class="chart-container">
+                                <!-- Dynamic chart will be rendered here -->
+                            </div>
+                        </div>
+                        
+                        <div class="visualization">
+                            <h3>Activity Statistics</h3>
+                            <p id="statsText">No statistics available yet</p>
+                        </div>
+                    </div>
+                    
+                    <div id="historyTab" class="tab-content">
+                        <h3>Update History</h3>
+                        <div id="historyEntries"></div>
+                    </div>
+                    
+                    <div id="rawDataTab" class="tab-content">
+                        <h3>Raw Tag Data</h3>
+                        <div id="jsonData" class="json-view">
+                            No data loaded
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -162,35 +308,8 @@
     <script>
         // Global variables
         let tagData = null;
-        
-        // Check if Web NFC API is available
-        if ('NDEFReader' in window) {
-            console.log("Web NFC is available");
-            document.getElementById('statusText').textContent = 'NFC Available - Click Read Tag Button';
-        } else {
-            console.log("Web NFC is NOT available");
-            // Try fallback to older NFC APIs
-            if ('nfc' in navigator) {
-                showNotification("Using alternative NFC API");
-                document.getElementById('statusText').textContent = 'Using alternative NFC API';
-            } else {
-                showNotification("NFC not supported. Please ensure: 1) You're using Chrome (v89+), 2) NFC is enabled on phone, 3) Page is loaded via HTTPS or localhost");
-                document.getElementById('statusText').textContent = 'NFC not supported or not accessible';
-                
-                // Show detailed debug info
-                const debugInfo = document.createElement('div');
-                debugInfo.innerHTML = `
-                    <div style="margin-top: 20px; padding: 10px; background: #f8f8f8; border: 1px solid #ddd; border-radius: 5px;">
-                        <h3>Troubleshooting Information</h3>
-                        <p>Browser: ${navigator.userAgent}</p>
-                        <p>Is Secure Context: ${window.isSecureContext ? 'Yes' : 'No (Web NFC requires HTTPS)'}</p>
-                        <p>Protocol: ${window.location.protocol}</p>
-                        <p>Origin: ${window.location.origin}</p>
-                    </div>
-                `;
-                document.querySelector('.card').appendChild(debugInfo);
-            }
-        }
+        let nfcEnabled = false;
+        let ndefInstance = null;
         
         // Helper function to show notifications
         function showNotification(message, duration = 3000) {
@@ -203,72 +322,179 @@
             }, duration);
         }
         
-        // Read NFC tag
+        // Tab switching function
+        function openTab(evt, tabName) {
+            // Hide all tab content
+            const tabContent = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContent.length; i++) {
+                tabContent[i].style.display = "none";
+            }
+            
+            // Remove "active" class from all tabs
+            const tabs = document.getElementsByClassName("tab");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].className = tabs[i].className.replace(" active", "");
+            }
+            
+            // Show the current tab and add "active" class
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // Check for NFC support using multiple methods
+        function checkNfcSupport() {
+            // Primary method: Web NFC API
+            if ('NDEFReader' in window) {
+                console.log("Web NFC is available");
+                document.getElementById('statusText').textContent = 'NFC Available - Click Read Tag Button';
+                nfcEnabled = true;
+                return true;
+            }
+            
+            // Fallback method: navigator.nfc (older API)
+            if ('nfc' in navigator) {
+                console.log("Using alternative NFC API");
+                document.getElementById('statusText').textContent = 'Using alternative NFC API';
+                nfcEnabled = true;
+                return true;
+            }
+            
+            // Add compatibility warning and debug info
+            showNotification("NFC not supported. Please ensure: 1) Chrome v89+, 2) NFC enabled, 3) HTTPS or localhost", 10000);
+            document.getElementById('statusText').textContent = 'NFC not supported or not accessible';
+            
+            const debugInfo = document.createElement('div');
+            debugInfo.innerHTML = `
+                <div style="margin-top: 20px; padding: 10px; background: #f8f8f8; border: 1px solid #ddd; border-radius: 5px;">
+                    <h3>Troubleshooting Information</h3>
+                    <p>Browser: ${navigator.userAgent}</p>
+                    <p>Is Secure Context: ${window.isSecureContext ? 'Yes' : 'No (Web NFC requires HTTPS)'}</p>
+                    <p>Protocol: ${window.location.protocol}</p>
+                    <p>Origin: ${window.location.origin}</p>
+                    <p>Please verify:</p>
+                    <ul>
+                        <li>You are using Chrome for Android (version 89+)</li>
+                        <li>NFC is enabled in your phone settings</li>
+                        <li>The page is loaded over HTTPS or from localhost</li>
+                        <li>Your device has NFC hardware</li>
+                    </ul>
+                </div>
+            `;
+            document.querySelector('.card').appendChild(debugInfo);
+            
+            return false;
+        }
+        
+        // Read NFC tag using Web NFC API
         async function readNfcTag() {
-            if (!('NDEFReader' in window)) return;
+            if (!nfcEnabled) {
+                showNotification("NFC is not supported on this device/browser");
+                return;
+            }
             
             try {
                 document.getElementById('statusText').textContent = 'Waiting for NFC tag...';
                 document.getElementById('statusIndicator').classList.remove('connected');
                 document.getElementById('statusIndicator').classList.add('disconnected');
                 
-                const ndef = new NDEFReader();
-                await ndef.scan();
-                
-                showNotification("Scan started - tap an NFC tag");
-                
-                ndef.addEventListener("reading", ({ message, serialNumber }) => {
-                    console.log(`> Serial Number: ${serialNumber}`);
-                    console.log(`> Records: (${message.records.length})`);
+                if ('NDEFReader' in window) {
+                    // Use standard Web NFC API
+                    ndefInstance = new NDEFReader();
+                    await ndefInstance.scan();
                     
-                    try {
-                        // Process the first record
-                        if (message.records.length > 0) {
-                            const decoder = new TextDecoder();
-                            const record = message.records[0];
-                            
-                            if (record.recordType === "text") {
-                                const textData = decoder.decode(record.data);
-                                try {
-                                    tagData = JSON.parse(textData);
-                                    updateUIWithTagData(tagData);
-                                    document.getElementById('writeButton').disabled = false;
-                                    showNotification("Tag read successfully!");
-                                } catch (e) {
-                                    // If not valid JSON, initialize a new data structure
-                                    tagData = {
-                                        "item_name": "",
-                                        "description": "",
-                                        "history": []
-                                    };
-                                    updateUIWithTagData(tagData);
-                                    document.getElementById('writeButton').disabled = false;
-                                    showNotification("New tag detected - ready to write");
-                                }
-                            }
+                    showNotification("Scan started - tap an NFC tag");
+                    
+                    ndefInstance.addEventListener("reading", ({ message, serialNumber }) => {
+                        console.log(`> Serial Number: ${serialNumber}`);
+                        console.log(`> Records: (${message.records.length})`);
+                        
+                        processNfcReading(message);
+                    });
+                } else if ('nfc' in navigator) {
+                    // Use older navigator.nfc API if available
+                    navigator.nfc.watch({
+                        mode: 'any',
+                        callback: function(message) {
+                            processNfcReading(message);
+                        },
+                        onerror: function(error) {
+                            console.error("NFC error:", error);
+                            showNotification("NFC error: " + error);
                         }
-                    } catch (error) {
-                        console.error("Error processing tag data:", error);
-                        showNotification("Error reading tag: " + error.message);
-                    }
-                });
-                
-                ndef.addEventListener("reading", (e) => {
-                    // Update status indicator
-                    document.getElementById('statusIndicator').classList.remove('disconnected');
-                    document.getElementById('statusIndicator').classList.add('connected');
-                    document.getElementById('statusText').textContent = 'NFC Tag Connected';
-                });
-
+                    });
+                }
             } catch (error) {
                 console.error(`Error scanning: ${error.message}`);
                 showNotification("Error: " + error.message);
+                
+                // Special handling for permission errors
+                if (error.name === 'NotAllowedError') {
+                    showNotification("NFC permission denied. Please enable NFC in your settings.", 5000);
+                }
+                
+                // Special handling for security errors
+                if (error.name === 'SecurityError') {
+                    showNotification("Security error. Make sure you're using HTTPS or localhost.", 5000);
+                }
+            }
+        }
+        
+        // Process NFC reading data
+        function processNfcReading(message) {
+            try {
+                // Process the first record
+                if (message.records && message.records.length > 0) {
+                    const record = message.records[0];
+                    
+                    if (record.recordType === "text") {
+                        const decoder = new TextDecoder();
+                        let textData;
+                        
+                        // Handle different record data structures
+                        if (record.data instanceof ArrayBuffer) {
+                            textData = decoder.decode(record.data);
+                        } else if (record.data && typeof record.data.buffer !== 'undefined') {
+                            textData = decoder.decode(record.data.buffer);
+                        } else if (typeof record.text === 'function') {
+                            textData = record.text();
+                        } else if (typeof record.text === 'string') {
+                            textData = record.text;
+                        }
+                        
+                        try {
+                            tagData = JSON.parse(textData);
+                            updateUIWithTagData(tagData);
+                            document.getElementById('writeButton').disabled = false;
+                            showNotification("Tag read successfully!");
+                        } catch (e) {
+                            // If not valid JSON, initialize a new data structure
+                            tagData = {
+                                "item_name": "",
+                                "description": "",
+                                "history": [],
+                                "notes": []
+                            };
+                            updateUIWithTagData(tagData);
+                            document.getElementById('writeButton').disabled = false;
+                            showNotification("New tag detected - ready to write");
+                        }
+                    }
+                }
+                
+                // Update status indicator
+                document.getElementById('statusIndicator').classList.remove('disconnected');
+                document.getElementById('statusIndicator').classList.add('connected');
+                document.getElementById('statusText').textContent = 'NFC Tag Connected';
+                
+            } catch (error) {
+                console.error("Error processing tag data:", error);
+                showNotification("Error reading tag: " + error.message);
             }
         }
         
         // Write to NFC tag
         async function writeNfcTag() {
-            if (!('NDEFReader' in window) || !tagData) return;
+            if (!nfcEnabled || !tagData) return;
             
             try {
                 // Update tag data
@@ -309,19 +535,31 @@
                 const updatedData = {
                     "item_name": itemName,
                     "description": description,
-                    "history": [...(tagData.history || []), historyEntry]
+                    "history": [...(tagData.history || []), historyEntry],
+                    "notes": tagData.notes || []
                 };
                 
                 document.getElementById('statusText').textContent = 'Tap tag to write...';
                 showNotification("Tap tag to write data");
                 
-                const ndef = new NDEFReader();
-                await ndef.write({
-                    records: [{
-                        recordType: "text",
-                        data: JSON.stringify(updatedData)
-                    }]
-                });
+                if ('NDEFReader' in window) {
+                    // Use standard Web NFC API
+                    const ndef = new NDEFReader();
+                    await ndef.write({
+                        records: [{
+                            recordType: "text",
+                            data: JSON.stringify(updatedData)
+                        }]
+                    });
+                } else if ('nfc' in navigator) {
+                    // Use older navigator.nfc API if available
+                    await navigator.nfc.push({
+                        records: [{
+                            type: "text",
+                            text: JSON.stringify(updatedData)
+                        }]
+                    });
+                }
                 
                 // Update local data
                 tagData = updatedData;
@@ -337,6 +575,83 @@
             }
         }
         
+        // Add note to tag
+        async function addNote() {
+            if (!tagData) return;
+            
+            const noteText = document.getElementById('noteText').value.trim();
+            if (!noteText) {
+                showNotification("Please enter a note");
+                return;
+            }
+            
+            // Create note entry
+            const now = new Date();
+            const humanTimestamp = now.toLocaleString('en-US', { 
+                month: 'long', 
+                day: 'numeric', 
+                year: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true
+            });
+            
+            const note = {
+                "text": noteText,
+                "timestamp": now.toISOString(),
+                "human_timestamp": humanTimestamp,
+                "user": document.getElementById('user').value || "Unknown"
+            };
+            
+            // Make sure notes array exists
+            if (!tagData.notes) {
+                tagData.notes = [];
+            }
+            
+            // Update data
+            tagData.notes.push(note);
+            
+            // Add to history
+            if (!tagData.history) {
+                tagData.history = [];
+            }
+            
+            const historyEntry = {
+                "timestamp": now.toISOString(),
+                "human_timestamp": humanTimestamp,
+                "changes": "Added note: " + (noteText.length > 20 ? noteText.substring(0, 20) + "..." : noteText),
+                "user": document.getElementById('user').value || "Unknown"
+            };
+            
+            tagData.history.push(historyEntry);
+            
+            // Try to write the updated data to the tag
+            try {
+                document.getElementById('statusText').textContent = 'Tap tag to save note...';
+                showNotification("Tap tag to save note");
+                
+                if ('NDEFReader' in window) {
+                    const ndef = new NDEFReader();
+                    await ndef.write({
+                        records: [{
+                            recordType: "text",
+                            data: JSON.stringify(tagData)
+                        }]
+                    });
+                    
+                    // Clear the note field
+                    document.getElementById('noteText').value = '';
+                    showNotification("Note saved successfully!");
+                    
+                    // Update UI
+                    updateUIWithTagData(tagData);
+                }
+            } catch (error) {
+                console.error(`Error writing note: ${error.message}`);
+                showNotification("Error saving note: " + error.message);
+            }
+        }
+        
         // Update UI with tag data
         function updateUIWithTagData(data) {
             // Show tag content
@@ -346,7 +661,7 @@
             document.getElementById('itemName').value = data.item_name || '';
             document.getElementById('description').value = data.description || '';
             
-            // Update history
+            // Update history entries
             const historyContainer = document.getElementById('historyEntries');
             historyContainer.innerHTML = '';
             
@@ -369,13 +684,111 @@
             } else {
                 historyContainer.innerHTML = '<p>No history available</p>';
             }
+            
+            // Update notes
+            const notesContainer = document.getElementById('notesContainer');
+            notesContainer.innerHTML = '';
+            
+            if (data.notes && data.notes.length > 0) {
+                data.notes.slice().reverse().forEach(note => {
+                    const noteElement = document.createElement('div');
+                    noteElement.className = 'note';
+                    
+                    const displayTime = note.human_timestamp || new Date(note.timestamp).toLocaleString();
+                    
+                    noteElement.innerHTML = `
+                        <div>${note.text}</div>
+                        <div class="note-metadata">Added by ${note.user} on ${displayTime}</div>
+                    `;
+                    
+                    notesContainer.appendChild(noteElement);
+                });
+            } else {
+                notesContainer.innerHTML = '<p>No notes found</p>';
+            }
+            
+            // Visualization - History timeline
+            updateVisualization(data);
+            
+            // Raw data display
+            const jsonDisplay = document.getElementById('jsonData');
+            jsonDisplay.textContent = JSON.stringify(data, null, 2);
+        }
+        
+        // Update visualizations
+        function updateVisualization(data) {
+            const historyChart = document.getElementById('historyChart');
+            historyChart.innerHTML = '';
+            
+            if (data.history && data.history.length > 0) {
+                // Calculate stats
+                const totalUpdates = data.history.length;
+                const totalNotes = (data.notes || []).length;
+                const firstUpdate = new Date(data.history[0].timestamp);
+                const lastUpdate = new Date(data.history[data.history.length - 1].timestamp);
+                const daysBetween = Math.round((lastUpdate - firstUpdate) / (1000 * 60 * 60 * 24));
+                
+                const statsText = document.getElementById('statsText');
+                statsText.innerHTML = `
+                    <b>Total Updates:</b> ${totalUpdates}<br>
+                    <b>Notes Added:</b> ${totalNotes}<br>
+                    <b>First Update:</b> ${firstUpdate.toLocaleDateString()}<br>
+                    <b>Last Update:</b> ${lastUpdate.toLocaleDateString()}<br>
+                    <b>Updates Period:</b> ${daysBetween} days<br>
+                    <b>Avg. Updates:</b> ${(totalUpdates / (daysBetween || 1)).toFixed(2)} per day
+                `;
+                
+                // Group updates by date for the chart
+                const updatesByDate = {};
+                data.history.forEach(entry => {
+                    const date = new Date(entry.timestamp).toLocaleDateString();
+                    updatesByDate[date] = (updatesByDate[date] || 0) + 1;
+                });
+                
+                // Create a simple bar chart
+                const dates = Object.keys(updatesByDate).slice(-7); // Last 7 days
+                const maxValue = Math.max(...Object.values(updatesByDate));
+                const chartHeight = 150;
+                
+                dates.forEach((date, index) => {
+                    const value = updatesByDate[date] || 0;
+                    const barHeight = (value / maxValue) * chartHeight;
+                    const barPosition = (index * 40) + 20;
+                    
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    bar.style.height = `${barHeight}px`;
+                    bar.style.left = `${barPosition}px`;
+                    historyChart.appendChild(bar);
+                    
+                    const barLabel = document.createElement('div');
+                    barLabel.className = 'bar-label';
+                    barLabel.style.left = `${barPosition}px`;
+                    barLabel.textContent = date.split('/').slice(0, 2).join('/');
+                    historyChart.appendChild(barLabel);
+                    
+                    const barValue = document.createElement('div');
+                    barValue.className = 'bar-value';
+                    barValue.style.left = `${barPosition}px`;
+                    barValue.style.bottom = `${barHeight + 5}px`;
+                    barValue.textContent = value;
+                    historyChart.appendChild(barValue);
+                });
+            } else {
+                historyChart.innerHTML = '<p>No history data to visualize</p>';
+                document.getElementById('statsText').textContent = 'No statistics available yet';
+            }
         }
         
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
+            // Check NFC support
+            checkNfcSupport();
+            
             // Add event listeners for buttons
             document.getElementById('readButton').addEventListener('click', readNfcTag);
             document.getElementById('writeButton').addEventListener('click', writeNfcTag);
+            document.getElementById('addNoteButton').addEventListener('click', addNote);
         });
     </script>
 </body>
